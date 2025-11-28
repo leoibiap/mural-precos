@@ -1,0 +1,57 @@
+{
+  "info": {
+    "name": "mural-precos-piaui-api",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "GET /tce/itens",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/tce/itens?objeto=atracurio",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "tce",
+            "itens"
+          ],
+          "query": [
+            {
+              "key": "objeto",
+              "value": "atracurio"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /pesquisa/completa",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:3000/pesquisa/completa?objeto=atracurio",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "pesquisa",
+            "completa"
+          ],
+          "query": [
+            {
+              "key": "objeto",
+              "value": "atracurio"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
