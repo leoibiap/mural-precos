@@ -1,5 +1,7 @@
+import Mural from "./pages/Mural";
+
 export default function App() {
-  return (
+  return <Mural />;
     <div className="min-h-screen bg-gray-100 text-gray-800">
 
       {/* HEADER */}
@@ -79,5 +81,5 @@ export default function App() {
       </footer>
 
     </div>
-  );
+  ;
 }
