@@ -1,4 +1,37 @@
 import { useState, useEffect } from "react";
+import { EyeIcon } from "@heroicons/react/24/outline";
+
+
+export const MAPA_SIGLAS = {
+  SEAD: "SECRETARIA DE ADMINISTRAÇÃO",
+  CBMEPI: "CORPO DE BOMBEIROS MILITAR DO ESTADO DO PIAUÍ",
+  COOJUV: "COORDENADORIA DA JUVENTUDE DO ESTADO DO PIAUÍ",
+  CCOM: "COORDENADORIA DE COMUNICAÇÃO SOCIAL DO PIAUÍ",
+  ADH: "AGÊNCIA DE DESENVOLVIMENTO HABITACIONAL DO PIAUÍ",
+  IASPI: "INSTITUTO DE ASSISTÊNCIA À SAÚDE DOS SERVIDORES PÚBLICOS DO ESTADO DO PIAUÍ",
+  PC: "DELEGACIA GERAL DA POLÍCIA CIVIL DA SECRETARIA DE SEGURANÇA PÚBLICA",
+  SEAGRO: "SECRETARIA DE ESTADO DO AGRONEGÓCIO E EMPREENDEDORISMO RURAL",
+  SECEPI: "SECRETARIA DE ESTADO DOS ESPORTES",
+  SSP: "SECRETARIA DE ESTADO DA SEGURANÇA PÚBLICA",
+  IDEPI: "INSTITUTO DE DESENVOLVIMENTO DO PIAUÍ",
+  PM: "POLÍCIA MILITAR DO ESTADO DO PIAUÍ",
+  SETUR: "SECRETARIA DE ESTADO DO TURISMO",
+  ISBPI: "INSTITUTO DO SANEAMENTO BÁSICO DO PIAUÍ",
+  PGE: "PROCURADORIA-GERAL DO ESTADO DO PIAUÍ",
+  SEPLAN: "SECRETARIA DE ESTADO DO PLANEJAMENTO",
+  VICEGOV: "VICE-GOVERNADORIA DO ESTADO DO PIAUÍ",
+  SEFIR: "SECRETARIA DA IRRIGAÇÃO E INFRAESTRUTURA HÍDRICA DO ESTADO DO PIAUÍ",
+  ADAPI: "AGÊNCIA DE DEFESA AGROPECUÁRIA DO ESTADO DO PIAUÍ",
+  PIAUIPREV: "FUNDAÇÃO PIAUÍ PREVIDÊNCIA",
+  SEDEC: "SECRETARIA DE ESTADO DA DEFESA CIVIL",
+  SEMARH: "SECRETARIA DE ESTADO DO MEIO AMBIENTE E RECURSOS HÍDRICOS",
+  CENDFOL: "COORDENADORIA ESTADUAL DE ENFRENTAMENTO ÀS DROGAS E FOMENTO AO LAZER",
+  FAPEPI: "FUNDAÇÃO DE AMPARO À PESQUISA DO ESTADO DO PIAUÍ",
+  FUESPI: "FUNDAÇÃO UNIVERSIDADE ESTADUAL DO PIAUÍ",
+  SEGOV: "SECRETARIA DE GOVERNO",
+  SASC: "SECRETARIA DO DESENVOLVIMENTO E ASSISTÊNCIA SOCIAL, FAMÍLIA E COMBATE À FOME"
+};
+
 
 export const MUNICIPIOS_PI = [
   "Acauã",
@@ -227,32 +260,6 @@ export const MUNICIPIOS_PI = [
   "Wall Ferraz"
 ];
 
-export const ORGAOS_PI = [
-  "SEAD",
-  "SEAGRO",
-  "SASC",
-  "SECEPI",
-  "SECID",
-  "SECOM",
-  "SECULT",
-  "SEDEC",
-  "SEDUC",
-  "SEFAZ",
-  "SEFIR",
-  "SEGOV",
-  "SEID",
-  "SEINFRA",
-  "SEJUS",
-  "SEMARH",
-  "SEMPI",
-  "SEPLAN",
-  "SERES",
-  "SESAPI",
-  "SSP",
-  "SETUR"
-];
-
-
 export default function Mural() {
   const [busca, setBusca] = useState("");
   const [resultado, setResultado] = useState([]);
@@ -263,58 +270,107 @@ export default function Mural() {
   const [valorMax, setValorMax] = useState("");
   const [filtroMunicipio, setFiltroMunicipio] = useState("");
   const [filtroOrgao, setFiltroOrgao] = useState("");
+const [orgaosAPI, setOrgaosAPI] = useState([]);
+
+useEffect(() => {
+  async function load() {
+    const lista = await carregarOrgaosDaAPI();
+    setOrgaosAPI(lista);
+  }
+  load();
+}, []);
 
 
-  async function buscarAPI() {
-  if (!busca.trim()) return;
+async function carregarOrgaosDaAPI() {
+  try {
+    const url = "http://localhost:3000/tce/itens?limit=50000";
+    const resp = await fetch(url);
+    const data = await resp.json();
 
+    const listaAPI = Array.isArray(data)
+      ? data
+      : data?.content || data?.itens || data || [];
+
+    const orgaosSet = new Set();
+
+    listaAPI.forEach(item => {
+      if (item.nome_ug) {
+        orgaosSet.add(item.nome_ug.trim());
+      }
+    });
+
+    return Array.from(orgaosSet).sort();
+
+  } catch (e) {
+    console.error("Erro ao carregar órgãos:", e);
+    return [];
+  }
+}
+
+
+function traduzirOrgao(sigla) {
+  if (!sigla) return "";
+  return MAPA_SIGLAS[sigla] || "";
+}
+
+ async function buscarAPI() {
   setLoading(true);
   setResultado([]);
 
   try {
     const params = new URLSearchParams();
 
-  if (busca.trim()) params.append("objeto", busca);
-  if (municipio.trim()) params.append("municipio", municipio);
-  if (orgao.trim()) params.append("orgao", orgao);
-  if (valorMin.trim()) params.append("valorMin", valorMin);
-  if (valorMax.trim()) params.append("valorMax", valorMax);
+    // Objeto
+    if (busca && busca.trim()) {
+      params.append("objeto", busca.trim());
+    }
 
-const url = `http://localhost:3000/tce/itens?${params.toString()}&municipio=${filtroMunicipio}&orgao=${filtroOrgao}`;
+    // Município
+    if (municipio && municipio.trim()) {
+      params.append("municipio", municipio.trim());
+    }
+
+    // Órgão — converte sigla → nome
+    if (orgao && orgao.trim()) {
+  params.append("orgao", orgao.trim());
+}
 
 
-    console.log("🔎 URL chamada:", url);
+    // Valores
+    if (valorMin && valorMin.trim()) {
+      params.append("valorMin", valorMin.trim());
+    }
+    if (valorMax && valorMax.trim()) {
+      params.append("valorMax", valorMax.trim());
+    }
+
+    // Monta URL somente com parâmetros preenchidos
+    const url = `http://localhost:3000/tce/itens?${params.toString()}`;
+    console.log("🔎 URL CHAMADA:", url);
 
     const res = await fetch(url);
     const data = await res.json();
 
-    console.log("📦 Retorno da API:", data);
+    console.log("📦 RETORNO DA API:", data);
 
-    // TENTATIVAS AUTOMÁTICAS DE ENCONTRAR A LISTA
-    const possiveisListas = [
-      data,
-      data?.content,
-      data?.lista,
-      data?.itens,
-      data?.dados,
-      data?.results,
-      data?.records
-    ];
+    // Tenta localizar lista automaticamente
+    const lista =
+      (Array.isArray(data) && data) ||
+      data?.content ||
+      data?.lista ||
+      data?.itens ||
+      data?.dados ||
+      data?.results ||
+      data?.records ||
+      [];
 
-    const listaEncontrada = possiveisListas.find(
-      (l) => Array.isArray(l) && l.length > 0
-    );
-
-    console.log("📌 Lista encontrada:", listaEncontrada);
-
-    setResultado(listaEncontrada || []);
+    setResultado(lista);
   } catch (err) {
-    console.error("❌ Erro:", err);
+    console.error("❌ ERRO:", err);
   } finally {
     setLoading(false);
   }
 }
-
 
   return (
     <div className="min-h-screen bg-gray-100 text-gray-800">
@@ -366,42 +422,6 @@ const url = `http://localhost:3000/tce/itens?${params.toString()}&municipio=${fi
   className="w-full max-w-md px-4 py-3 rounded-lg text-gray-800"
 />
 
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-
-  {/* MUNICÍPIO */}
-  <select
-    className="border p-2 rounded"
-    value={filtroMunicipio}
-    onChange={(e) => setFiltroMunicipio(e.target.value)}
-  >
-    <option value="">Todos os municípios</option>
-    {MUNICIPIOS_PI.map((m, i) => (
-      <option key={i} value={m}>{m}</option>
-    ))}
-  </select>
-
-  {/* ÓRGÃO */}
-  <select
-    className="border p-2 rounded"
-    value={filtroOrgao}
-    onChange={(e) => setFiltroOrgao(e.target.value)}
-  >
-    <option value="">Todos os órgãos</option>
-    {ORGAOS_PI.map((o, i) => (
-      <option key={i} value={o}>{o}</option>
-    ))}
-  </select>
-
-  {/* BOTÃO */}
-  <button
-    onClick={buscarAPI}
-    className="bg-blue-600 text-white rounded px-4 py-2"
-  >
-    Buscar
-  </button>
-</div>
-
-
             <button
               onClick={buscarAPI}
               className="bg-white text-blue-700 font-semibold px-6 py-3 rounded-lg shadow hover:bg-gray-200"
@@ -412,27 +432,37 @@ const url = `http://localhost:3000/tce/itens?${params.toString()}&municipio=${fi
 
         <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 mt-4 w-full max-w-3xl">
 
-  <input
-    type="text"
-    placeholder="Município"
-    value={municipio}
-    onChange={(e) => setMunicipio(e.target.value)}
-    onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
-    className="px-4 py-2 rounded-lg text-gray-800"
-  />
+  {/* SELECT MUNICÍPIO */}
+<select
+  className="px-4 py-2 rounded-lg text-gray-800 border"
+  value={municipio}
+  onChange={(e) => setMunicipio(e.target.value)}
+>
+  <option value="">Municípios</option>
+  {MUNICIPIOS_PI.map((m, i) => (
+    <option key={i} value={m}>{m}</option>
+  ))}
+</select>
 
-  <input
-    type="text"
-    placeholder="Órgão"
-    value={orgao}
-    onChange={(e) => setOrgao(e.target.value)}
-    onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
-    className="px-4 py-2 rounded-lg text-gray-800"
-  />
+{/* SELECT ÓRGÃO */}
+<select
+  className="px-4 py-2 rounded-lg text-gray-800 border"
+  value={orgao}
+  onChange={(e) => setOrgao(e.target.value)}
+>
+  <option value="">Órgãos</option>
+
+  {orgaosAPI.map((o, index) => (
+    <option key={index} value={o}>
+      {o}
+    </option>
+  ))}
+</select>
+
 
   <input
     type="number"
-    placeholder="Valor mínimo"
+    placeholder="Valor Mínimo"
     value={valorMin}
     onChange={(e) => setValorMin(e.target.value)}
     onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
@@ -441,11 +471,11 @@ const url = `http://localhost:3000/tce/itens?${params.toString()}&municipio=${fi
 
   <input
     type="number"
-    placeholder="Valor máximo"
+    placeholder="Valor Máximo"
     value={valorMax}
     onChange={(e) => setValorMax(e.target.value)}
     onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
-    className="px-4 py-2 rounded-lg text-gray-800"
+    className="px-3 py-2 rounded-lg text-gray-800"
   />
 
 </div>
@@ -455,8 +485,7 @@ const url = `http://localhost:3000/tce/itens?${params.toString()}&municipio=${fi
       </section>
 
 
-      {/* CARDS DINÂMICOS */}
-<section className="mx-auto px-6 py-12 max-w-7xl">
+     <section className="mx-auto px-6 py-12 max-w-7xl">
 
   {loading && (
     <p className="text-gray-700 text-xl font-medium">Carregando...</p>
@@ -469,54 +498,94 @@ const url = `http://localhost:3000/tce/itens?${params.toString()}&municipio=${fi
   <div className="flex flex-col gap-4 w-full">
 
     {!loading &&
-      resultado.length > 0 &&
-      resultado.map((item, index) => (
-        <div
-          key={index}
-          className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow transition-all"
-        >
+  resultado.length > 0 &&
+  resultado.map((item, index) => (
+    <div
+  key={index}
+  className="
+    bg-white
+    px-4 py-4
+    border border-gray-300
+    shadow-sm
+    rounded-md
+    w-full
+    max-w-7xl
+    mx-auto
+    mb-4
+  "
+>
 
-          {/* Título */}
-          <h3
-            className="text-lg font-semibold text-gray-900 mb-3 leading-snug"
-            style={{
-              display: "-webkit-box",
-              WebkitLineClamp: "2",
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
-            {item.objeto || "Sem descrição"}
-          </h3>
 
-          {/* GRID CLEAN */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* TÍTULO – ESTILO TCE */}
+      <p className="font-semibold text-gray-900 text-sm leading-relaxed mb-4 uppercase">
+  {item.objeto || "DESCRIÇÃO NÃO INFORMADA"}
+</p>
 
-            {/* Informações */}
-            <div className="space-y-1 text-sm text-gray-700">
-              <p><span className="font-medium">Órgão:</span> {item.nome_ug || "—"}</p>
-              <p><span className="font-medium">Cidade:</span> {item.municipio || "—"}</p>
-              <p><span className="font-medium">Quantidade:</span> {item.quantidade || "—"}</p>
-            </div>
 
-            {/* Valor */}
-            <div className="sm:col-span-1 flex sm:justify-end sm:items-center">
-              <div className="text-right">
-                <p className="text-gray-500 text-sm">Valor unitário</p>
-                <p className="text-green-700 text-2xl font-bold">
-                  {item.valor_unitario
-                    ? `R$ ${Number(item.valor_unitario).toLocaleString("pt-BR", {
-                        minimumFractionDigits: 2,
-                      })}`
-                    : "—"}
-                </p>
-              </div>
-            </div>
+      {/* CAMPOS – ESTILO TCE */}
+      <div className="text-sm text-gray-800 space-y-1">
 
-          </div>
+        <p>
+          <strong>Órgão:</strong> {item.nome_ug || "Não informado"}
+        </p>
 
-        </div>
-      ))}
+        <p>
+          <strong>Instrumento:</strong> {item.instrumento || "Não informado"}
+        </p>
+
+        <p>
+          <strong>Cidade:</strong> {item.municipio || "Não informado"}
+        </p>
+
+        <p>
+          <strong>Quantidade:</strong> {item.quantidade || "—"}
+        </p>
+
+        <p>
+          <strong>Data:</strong> {item.data || "—"}
+        </p>
+
+        <p>
+          <strong>Situação:</strong> {item.situacao || "—"}
+        </p>
+      </div>
+
+{/* Ícone de Olho igual ao TCE */}
+<div className="flex justify-between items-start gap-4">
+  <button
+    onClick={() =>
+      window.open(
+        `https://sistemas.tce.pi.gov.br/muralcon/detalheContrato.xhtml?id=${item.id_fonte}`,
+        "_blank"
+      )
+    }
+    className="p-2 rounded-lg hover:bg-gray-100 transition"
+    title="Ver detalhes"
+  >
+    <EyeIcon className="w-6 h-6 text-blue-600 hover:text-blue-800" />
+  </button>
+</div>
+
+
+
+
+      {/* VALOR UNITÁRIO*/}
+      <div className="mt-4 flex justify-end">
+  <div className="text-right">
+    <p className="text-gray-600 text-sm">Valor unitário</p>
+    <p className="text-green-700 text-xl font-bold">
+      {item.valor_unitario
+        ? `R$ ${Number(item.valor_unitario).toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+          })}`
+        : "—"}
+    </p>
+  </div>
+</div>
+
+    </div>
+  ))}
+
   </div>
 </section>
 
