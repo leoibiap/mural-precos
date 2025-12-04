@@ -271,7 +271,12 @@ export default function Mural() {
   const [filtroMunicipio, setFiltroMunicipio] = useState("");
   const [filtroOrgao, setFiltroOrgao] = useState("");
 const [orgaosAPI, setOrgaosAPI] = useState([]);
+const [ordenacao, setOrdenacao] = useState("nenhum");
+const [orgaos, setOrgaos] = useState([]);
+const [orgaoSelecionado, setOrgaoSelecionado] = useState("");
 
+
+ 
 useEffect(() => {
   async function load() {
     const lista = await carregarOrgaosDaAPI();
@@ -279,6 +284,13 @@ useEffect(() => {
   }
   load();
 }, []);
+
+useEffect(() => {
+  if (resultado && resultado.length > 0) {
+    const listaOrgaos = [...new Set(resultado.map(i => i.nome_ug).filter(Boolean))];
+    setOrgaos(listaOrgaos);
+  }
+}, [resultado]);
 
 
 async function carregarOrgaosDaAPI() {
@@ -330,11 +342,10 @@ function traduzirOrgao(sigla) {
       params.append("municipio", municipio.trim());
     }
 
-    // Órgão — converte sigla → nome
-    if (orgao && orgao.trim()) {
-  params.append("orgao", orgao.trim());
+   // Órgão — nome real selecionado no dropdown
+if (orgaoSelecionado && orgaoSelecionado.trim()) {
+  params.append("orgao", orgaoSelecionado.trim());
 }
-
 
     // Valores
     if (valorMin && valorMin.trim()) {
@@ -347,7 +358,7 @@ function traduzirOrgao(sigla) {
     // Monta URL somente com parâmetros preenchidos
     const url = `http://localhost:3000/tce/itens?${params.toString()}`;
     console.log("🔎 URL CHAMADA:", url);
-
+    
     const res = await fetch(url);
     const data = await res.json();
 
@@ -364,7 +375,17 @@ function traduzirOrgao(sigla) {
       data?.records ||
       [];
 
-    setResultado(lista);
+// 🔽 ORDENAÇÃO NO FRONTEND
+if (ordenacao === "menor") {
+  lista.sort((a, b) => (Number(a.valor_unitario) || 0) - (Number(b.valor_unitario) || 0));
+}
+
+if (ordenacao === "maior") {
+  lista.sort((a, b) => (Number(b.valor_unitario) || 0) - (Number(a.valor_unitario) || 0));
+}
+
+
+    setResultado(data.resultados || []);
   } catch (err) {
     console.error("❌ ERRO:", err);
   } finally {
@@ -418,12 +439,13 @@ function traduzirOrgao(sigla) {
   placeholder="Buscar produto..."
   value={busca}
   onChange={(e) => setBusca(e.target.value)}
-  onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
+onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
   className="w-full max-w-md px-4 py-3 rounded-lg text-gray-800"
 />
 
             <button
-              onClick={buscarAPI}
+         onClick={buscarAPI}
+
               className="bg-white text-blue-700 font-semibold px-6 py-3 rounded-lg shadow hover:bg-gray-200"
             >
               Buscar
@@ -446,17 +468,29 @@ function traduzirOrgao(sigla) {
 
 {/* SELECT ÓRGÃO */}
 <select
-  className="px-4 py-2 rounded-lg text-gray-800 border"
-  value={orgao}
-  onChange={(e) => setOrgao(e.target.value)}
+  className="px-4 py-2 rounded-lg text-gray-800 border bg-white cursor-pointer"
+  value={orgaoSelecionado}
+  onChange={(e) => setOrgaoSelecionado(e.target.value)}
 >
   <option value="">Órgãos</option>
 
-  {orgaosAPI.map((o, index) => (
-    <option key={index} value={o}>
-      {o}
+  {orgaos.map((nome, index) => (
+    <option key={index} value={nome}>
+      {nome}
     </option>
   ))}
+</select>
+
+
+
+<select
+  className="px-4 py-2 rounded-lg text-gray-800 border"
+  value={ordenacao}
+  onChange={(e) => setOrdenacao(e.target.value)}
+>
+  <option value="nenhum">Ordenar por</option>
+  <option value="menor">Menor valor primeiro</option>
+  <option value="maior">Maior valor primeiro</option>
 </select>
 
 
@@ -465,7 +499,7 @@ function traduzirOrgao(sigla) {
     placeholder="Valor Mínimo"
     value={valorMin}
     onChange={(e) => setValorMin(e.target.value)}
-    onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
+   onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
     className="px-4 py-2 rounded-lg text-gray-800"
   />
 
@@ -474,7 +508,7 @@ function traduzirOrgao(sigla) {
     placeholder="Valor Máximo"
     value={valorMax}
     onChange={(e) => setValorMax(e.target.value)}
-    onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
+   onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
     className="px-3 py-2 rounded-lg text-gray-800"
   />
 
@@ -500,7 +534,7 @@ function traduzirOrgao(sigla) {
     {!loading &&
   resultado.length > 0 &&
   resultado.map((item, index) => (
-    <div
+  <div
   key={index}
   className="
     bg-white
@@ -508,69 +542,56 @@ function traduzirOrgao(sigla) {
     border border-gray-300
     shadow-sm
     rounded-md
-    w-full
     max-w-7xl
+    w-full
     mx-auto
-    mb-4
   "
 >
+  {/* CABEÇALHO: TÍTULO + ÍCONE + VALOR */}
+  <div className="flex justify-between items-start gap-4">
 
+    {/* TÍTULO */}
+    <p className="font-semibold text-gray-900 text-sm leading-relaxed uppercase flex-1">
+      {item.objeto || "DESCRIÇÃO NÃO INFORMADA"}
+    </p>
 
-      {/* TÍTULO – ESTILO TCE */}
-      <p className="font-semibold text-gray-900 text-sm leading-relaxed mb-4 uppercase">
-  {item.objeto || "DESCRIÇÃO NÃO INFORMADA"}
-</p>
+    {/* AÇÕES + VALOR */}
+    <div className="flex flex-col items-end">
 
+      {/* Ícone */}
+      <button
+        onClick={() =>
+          window.open(
+            `https://sistemas.tce.pi.gov.br/muralcon/detalheContrato.xhtml?id=${item.id_fonte}`,
+            "_blank"
+          )
+        }
+        className="p-1 rounded hover:bg-gray-100 transition"
+        title="Ver detalhes"
+      >
+        <EyeIcon className="w-8 h-10 text-blue-600" />
+      </button>
 
-      {/* CAMPOS – ESTILO TCE */}
-      <div className="text-sm text-gray-800 space-y-1">
+      
 
-        <p>
-          <strong>Órgão:</strong> {item.nome_ug || "Não informado"}
-        </p>
+    </div>
+  </div>
 
-        <p>
-          <strong>Instrumento:</strong> {item.instrumento || "Não informado"}
-        </p>
+  {/* CAMPOS */}
+  
+  <div className="mt-2 text-sm text-gray-800 space-y-0.5">
 
-        <p>
-          <strong>Cidade:</strong> {item.municipio || "Não informado"}
-        </p>
+    <p><strong>Órgão:</strong> {item.nome_ug || "Não informado"}</p>
+    <p><strong>Instrumento:</strong> {item.instrumento || "Não informado"}</p>
+    <p><strong>Cidade:</strong> {item.municipio || "Não informado"}</p>
+    <p><strong>Quantidade:</strong> {item.quantidade || "—"}</p>
+    <p><strong>Data:</strong> {item.data || "—"}</p>
+    <p><strong>Situação:</strong> {item.situacao || "—"}</p>
 
-        <p>
-          <strong>Quantidade:</strong> {item.quantidade || "—"}
-        </p>
+  </div>
 
-        <p>
-          <strong>Data:</strong> {item.data || "—"}
-        </p>
-
-        <p>
-          <strong>Situação:</strong> {item.situacao || "—"}
-        </p>
-      </div>
-
-{/* Ícone de Olho igual ao TCE */}
-<div className="flex justify-between items-start gap-4">
-  <button
-    onClick={() =>
-      window.open(
-        `https://sistemas.tce.pi.gov.br/muralcon/detalheContrato.xhtml?id=${item.id_fonte}`,
-        "_blank"
-      )
-    }
-    className="p-2 rounded-lg hover:bg-gray-100 transition"
-    title="Ver detalhes"
-  >
-    <EyeIcon className="w-6 h-6 text-blue-600 hover:text-blue-800" />
-  </button>
-</div>
-
-
-
-
-      {/* VALOR UNITÁRIO*/}
-      <div className="mt-4 flex justify-end">
+{/* Valor */}
+     <div className="-mt-12 flex justify-end">
   <div className="text-right">
     <p className="text-gray-600 text-sm">Valor unitário</p>
     <p className="text-green-700 text-xl font-bold">
@@ -583,7 +604,7 @@ function traduzirOrgao(sigla) {
   </div>
 </div>
 
-    </div>
+</div>
   ))}
 
   </div>

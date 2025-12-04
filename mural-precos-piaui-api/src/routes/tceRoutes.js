@@ -4,75 +4,85 @@ import cached from '../middleware/cache.js';
 
 const router = express.Router();
 
-/**
- * @openapi
- * /tce/itens:
- *   get:
- *     summary: Proxy para o endpoint itensWeb do TCE-PI
- *     parameters:
- *       - in: query
- *         name: objeto
- *         schema:
- *           type: string
- *       - in: query
- *         name: periodoInicial
- *         schema:
- *           type: string
- *       - in: query
- *         name: periodoFinal
- *         schema:
- *           type: string
- *       - in: query
- *         name: tamanhoPagina
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Lista de itens
- */
-router.get('/itens',
+router.get(
+  '/itens',
   cached(req => `tce:itens:${JSON.stringify(req.query)}`),
   async (req, res) => {
     try {
-  console.log('[tceRoutes] req.query =', req.query);
+      console.log('[tceRoutes] req.query =', req.query);
 
-  const params = {
-    objeto: req.query.objeto || '',
-    periodoInicial: req.query.periodoInicial,
-    periodoFinal: req.query.periodoFinal,
-    municipio: req.query.municipio || '',
-    tamanhoPagina: req.query.limit ? Number(req.query.limit) : undefined
-  };
+      const { objeto, municipio, orgao, limit, offset } = req.query;
 
-  const data = await buscarItensWeb(params);
+      // ----------------------------
+      // 🔹 1) CONSULTA NO TCE
+      // ----------------------------
+      // O TCE NÃO faz paginação, então sempre pegamos tudo
+      const dados = await buscarItensWeb({
+        objeto: objeto ?? '',
+        municipio: municipio ?? '',
+        fonte: 'T',
+        tamanhoPagina: 50000, // GRANDE PRA TRAZER TODOS
+        paginaOffSet: 0,
+        tipoPesquisa: 0
+      });
 
-  // normalização defensiva (pode ser array ou objeto)
-  let lista = Array.isArray(data) ? data : data?.content || data?.itens || data || [];
+      // ----------------------------
+      // 🔹 2) NORMALIZA A LISTA
+      // ----------------------------
+      let lista =
+        (Array.isArray(dados) && dados) ||
+        dados?.itens ||
+        dados?.content ||
+        dados?.results ||
+        [];
 
-  if (!Array.isArray(lista)) lista = [];
-  
-      // Agora filtra manualmente
-      const municipio = req.query.municipio?.trim();
-      const orgao = req.query.orgao?.trim();
+      if (!Array.isArray(lista)) {
+        console.warn('[tceRoutes] lista não era array. Forçando array vazio.');
+        lista = [];
+      }
 
-      if (municipio) {
-        lista = lista.filter(i =>
-          i.municipio?.toLowerCase() === municipio.toLowerCase()
+      // ----------------------------
+      // 🔹 3) FILTRO MUNICÍPIO (igual ao seu)
+      // ----------------------------
+      if (municipio && municipio.trim() !== '') {
+        lista = lista.filter(item =>
+          item.municipio?.toLowerCase() === municipio.toLowerCase()
         );
       }
 
-      if (orgao) {
-        lista = lista.filter(i =>
-          i.nome_ug?.toLowerCase().includes(orgao.toLowerCase())
+      // ----------------------------
+      // 🔹 4) FILTRO POR ÓRGÃO (CORRIGIDO)
+      // ----------------------------
+      if (orgao && orgao.trim() !== '') {
+        const termo = orgao.toLowerCase();
+        lista = lista.filter(item =>
+          item.nome_ug?.toLowerCase().includes(termo)
         );
       }
 
-      res.json(lista);
+      // ----------------------------
+      // 🔹 5) PAGINAÇÃO LOCAL
+      // ----------------------------
+      const LIMIT = Number(limit) || 20;
+      const OFFSET = Number(offset) || 0;
+
+      const paginado = lista.slice(OFFSET, OFFSET + LIMIT);
+
+      // ----------------------------
+      // 🔹 6) RESPOSTA FINAL
+      // ----------------------------
+      res.json({
+        total: lista.length,
+        limite: LIMIT,
+        pagina: OFFSET / LIMIT + 1,
+        resultados: paginado
+      });
+
     } catch (err) {
       console.error('[tceRoutes] erro', err);
-      res.status(500).json({ erro: 'Falha ao consultar TCE-PI' });
+      res.status(500).json({ erro: 'Falha ao consultar TCE-PI', detalhes: err.message });
     }
-  });
-
+  }
+);
 
 export default router;

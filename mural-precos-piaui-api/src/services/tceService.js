@@ -6,15 +6,14 @@ const TCE_BASE = 'https://sistemas.tce.pi.gov.br/api/jointce/itensWeb';
 export async function buscarItensWeb(opts = {}) {
   // opts: { objeto, periodoInicial, periodoFinal, tamanhoPagina, paginaOffSet, tipoPesquisa, municipio, fonte }
   const params = {
-    objeto: opts.objeto ?? '',
-    periodoInicial: opts.periodoInicial ?? '',
-    periodoFinal: opts.periodoFinal ?? '',
-    municipio: opts.municipio ?? '',
-    fonte: opts.fonte ?? 'T',
-    tamanhoPagina: opts.tamanhoPagina ?? (opts.limit ? Number(opts.limit) : 100000),
-    paginaOffSet: opts.paginaOffSet ?? 0,
-    tipoPesquisa: opts.tipoPesquisa ?? 0
-  };
+  objeto: opts.objeto ?? '',
+  municipio: opts.municipio ?? '',
+  fonte: opts.fonte ?? 'T',
+  tamanhoPagina: opts.tamanhoPagina ?? (opts.limit ? Number(opts.limit) : 100000),
+  paginaOffSet: opts.paginaOffSet ?? 0,
+  tipoPesquisa: opts.tipoPesquisa ?? 0
+};
+
 
   // Log de debug (útil para desenvolvimento)
   console.log('[tceService] solicitando TCE com params:', params);
