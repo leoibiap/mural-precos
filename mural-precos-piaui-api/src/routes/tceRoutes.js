@@ -11,20 +11,24 @@ router.get(
     try {
       console.log('[tceRoutes] req.query =', req.query);
 
-      const { objeto, municipio, orgao, limit, offset } = req.query;
+      const objeto = req.query.objeto ?? "";
+const municipio = req.query.municipio ?? "";
+const orgao = req.query.orgao || req.query.orgaoSelecionado || "";
+const limit = req.query.limit;
+const offset = req.query.offset;
 
       // ----------------------------
       // 🔹 1) CONSULTA NO TCE
-      // ----------------------------
-      // O TCE NÃO faz paginação, então sempre pegamos tudo
+     
       const dados = await buscarItensWeb({
-        objeto: objeto ?? '',
-        municipio: municipio ?? '',
-        fonte: 'T',
-        tamanhoPagina: 50000, // GRANDE PRA TRAZER TODOS
-        paginaOffSet: 0,
-        tipoPesquisa: 0
-      });
+  objeto: objeto || "",
+  municipio: municipio || "",
+  fonte: "T",
+  tamanhoPagina: 50000,
+  paginaOffSet: 0,
+  tipoPesquisa: 0
+});
+
 
       // ----------------------------
       // 🔹 2) NORMALIZA A LISTA
@@ -71,12 +75,8 @@ router.get(
       // ----------------------------
       // 🔹 6) RESPOSTA FINAL
       // ----------------------------
-      res.json({
-        total: lista.length,
-        limite: LIMIT,
-        pagina: OFFSET / LIMIT + 1,
-        resultados: paginado
-      });
+      res.json(paginado);
+
 
     } catch (err) {
       console.error('[tceRoutes] erro', err);

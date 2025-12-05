@@ -319,6 +319,19 @@ async function carregarOrgaosDaAPI() {
   }
 }
 
+function limparFiltros() {
+  setBusca("");
+  setMunicipio("");
+  setOrgaoSelecionado("");
+  setValorMin("");
+  setValorMax("");
+  setOrdenacao("nenhum");
+  setResultado([]);
+
+  // recarrega a página
+  window.location.reload();
+}
+
 
 function traduzirOrgao(sigla) {
   if (!sigla) return "";
@@ -365,27 +378,39 @@ if (orgaoSelecionado && orgaoSelecionado.trim()) {
     console.log("📦 RETORNO DA API:", data);
 
     // Tenta localizar lista automaticamente
-    const lista =
-      (Array.isArray(data) && data) ||
-      data?.content ||
-      data?.lista ||
-      data?.itens ||
-      data?.dados ||
-      data?.results ||
-      data?.records ||
-      [];
+   let lista = [];
+
+if (Array.isArray(data)) {
+  lista = data;
+} else if (data && typeof data === "object") {
+  const chaveArray = Object.keys(data).find(
+    key => Array.isArray(data[key])
+  );
+  lista = chaveArray ? data[chaveArray] : [];
+}
+
+if (!Array.isArray(lista)) lista = [];
+
 
 // 🔽 ORDENAÇÃO NO FRONTEND
 if (ordenacao === "menor") {
-  lista.sort((a, b) => (Number(a.valor_unitario) || 0) - (Number(b.valor_unitario) || 0));
-}
+      lista.sort(
+        (a, b) =>
+          (Number(a.valor_unitario) || 0) -
+          (Number(b.valor_unitario) || 0)
+      );
+    }
 
-if (ordenacao === "maior") {
-  lista.sort((a, b) => (Number(b.valor_unitario) || 0) - (Number(a.valor_unitario) || 0));
-}
+    if (ordenacao === "maior") {
+      lista.sort(
+        (a, b) =>
+          (Number(b.valor_unitario) || 0) -
+          (Number(a.valor_unitario) || 0)
+      );
+    }
 
-
-    setResultado(data.resultados || []);
+    
+    setResultado(lista);
   } catch (err) {
     console.error("❌ ERRO:", err);
   } finally {
@@ -433,30 +458,43 @@ if (ordenacao === "maior") {
             variações e consulte informações atualizadas.
           </p>
 
-          <div className="mt-8 flex gap-4">
-            <input
-  type="text"
-  placeholder="Buscar produto..."
-  value={busca}
-  onChange={(e) => setBusca(e.target.value)}
-onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
-  className="w-full max-w-md px-4 py-3 rounded-lg text-gray-800"
-/>
+          <div className="mt-8 flex gap-4 font-medium text-gray-700 tracking-wide
+">
 
-            <button
-         onClick={buscarAPI}
+  <input
+    type="text"
+    placeholder="Buscar produto..."
+    value={busca}
+    onChange={(e) => setBusca(e.target.value)}
+    onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
+    className="w-full max-w-md px-4 py-3 rounded-lg text-gray-800"
+  />
 
-              className="bg-white text-blue-700 font-semibold px-6 py-3 rounded-lg shadow hover:bg-gray-200"
-            >
-              Buscar
-            </button>
-          </div>
+  {/* BOTÃO BUSCAR */}
+  <button
+    onClick={buscarAPI}
+    className="bg-white text-blue-700 font-semibold px-6 py-3 rounded-lg shadow hover:bg-gray-200"
+  >
+    Buscar
+  </button>
+
+  {/* BOTÃO LIMPAR — mesma altura, estilo discreto */}
+  <button
+    onClick={limparFiltros}
+    className="bg-gray-200 text-red-500 font-semibold px-6 py-3 rounded-lg shadow hover:bg-gray-300"
+  >
+    Limpar
+  </button>
+
+</div>
+
+
 
         <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4 mt-4 w-full max-w-3xl">
 
   {/* SELECT MUNICÍPIO */}
 <select
-  className="px-4 py-2 rounded-lg text-gray-800 border"
+  className="px-4 py-2 rounded-lg font-medium text-gray-700 tracking-wide"
   value={municipio}
   onChange={(e) => setMunicipio(e.target.value)}
 >
@@ -468,9 +506,10 @@ onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
 
 {/* SELECT ÓRGÃO */}
 <select
-  className="px-4 py-2 rounded-lg text-gray-800 border bg-white cursor-pointer"
-  value={orgaoSelecionado}
-  onChange={(e) => setOrgaoSelecionado(e.target.value)}
+  className="px-4 py-2 rounded-lg font-medium text-gray-700 tracking-wide"
+ value={orgaoSelecionado}
+onChange={(e) => {setOrgaoSelecionado(e.target.value);
+}}
 >
   <option value="">Órgãos</option>
 
@@ -482,15 +521,14 @@ onKeyDown={(e) => e.key === "Enter" && buscarAPI()}
 </select>
 
 
-
 <select
-  className="px-4 py-2 rounded-lg text-gray-800 border"
+  className="px-3 py-2 rounded-lg font-medium text-gray-700 tracking-wide"
   value={ordenacao}
   onChange={(e) => setOrdenacao(e.target.value)}
 >
   <option value="nenhum">Ordenar por</option>
-  <option value="menor">Menor valor primeiro</option>
-  <option value="maior">Maior valor primeiro</option>
+  <option value="menor">Menor valor ⬇</option>
+  <option value="maior">Maior valor ⬆️ </option>
 </select>
 
 
